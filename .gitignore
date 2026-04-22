@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+env/
+venv/
+.venv/
+.env
+.idea/
+*.log
+uploads/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vuepress/dist
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统
+.DS_Store
+Thumbs.db
