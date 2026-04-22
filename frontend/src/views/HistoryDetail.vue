@@ -1,129 +1,122 @@
 <template>
   <div class="history-detail">
-    <van-nav-bar 
-      title="历史详情" 
-      fixed 
-      left-text="返回" 
+    <van-nav-bar
+      title="历史详情"
+      left-text="返回"
       @click-left="goBack"
     />
-    <div class="content">
-      <LoadingBlock v-if="loading" text="加载中..." />
-      <div v-else-if="historyItem" class="detail-content">
-        <!-- 原图展示 -->
-        <div class="image-container">
-          <van-image :src="imageUrl" fit="contain" class="original-image" />
-          <div class="image-info">
-            <span class="info-item">
-              <van-icon name="clock" size="14" />
-              {{ formatDate(historyItem.image.created_at) }}
-            </span>
-            <span class="info-item">
-              <van-icon name="document" size="14" />
-              {{ historyItem.image.file_name }}
-            </span>
-          </div>
-        </div>
-        
-        <!-- 解析结果 -->
-        <ParseSummaryCard v-if="historyItem.parse_result" :parse-result="parseResult" />
-        <div v-else class="no-parse-result">
-          <van-icon name="info-o" size="24" color="#999" />
-          <span>无解析结果</span>
-        </div>
-        
-        <!-- 动作记录 -->
-        <van-card class="action-records">
-          <template #title>
-            执行记录 ({{ historyItem.action_records.length }})
-          </template>
-          <div v-if="historyItem.action_records.length > 0" class="records-list">
-            <van-cell
-              v-for="record in historyItem.action_records"
-              :key="record.id"
-              class="record-item"
-            >
-              <div class="record-content">
-                <div class="record-header">
-                  <span class="record-type">{{ getActionLabel(record.action_type) }}</span>
-                  <van-tag 
-                    :color="record.execute_status === 'success' ? '#52c41a' : '#ff4d4f'" 
-                    size="small"
-                  >
-                    {{ record.execute_status === 'success' ? '成功' : '失败' }}
-                  </van-tag>
-                </div>
-                <div class="record-time">{{ formatDate(record.created_at) }}</div>
-                <div class="record-result" v-if="record.execute_result">
-                  <pre>{{ JSON.stringify(record.execute_result, null, 2) }}</pre>
-                </div>
-              </div>
-            </van-cell>
-          </div>
-          <div v-else class="empty-records">
-            暂无执行记录
-          </div>
-        </van-card>
-        
-        <!-- 重新执行动作 -->
-        <ActionButtons v-if="historyItem.parse_result" :parse-result="parseResult" :image-id="historyItem.image.id" />
+
+    <div v-if="loading" class="loading-container">
+      <LoadingBlock />
+    </div>
+
+    <div v-else-if="error" class="error-container">
+      <van-empty description="加载失败" />
+      <van-button type="primary" @click="loadData">重试</van-button>
+    </div>
+
+    <div v-else class="detail-content">
+      <div class="image-container">
+        <img :src="historyData?.image?.file_path || ''" :alt="historyData?.image?.file_name || '历史图片'" />
       </div>
-      <EmptyState v-else text="加载失败，请重试" />
+
+      <div class="info-section">
+        <van-cell-group>
+          <van-cell title="文件名" :value="historyData?.image?.file_name" />
+          <van-cell title="上传时间" :value="formatDate(historyData?.image?.created_at || '')" />
+          <van-cell v-if="historyData?.parse_result" title="场景类型" :value="getSceneLabel(historyData.parse_result.scene_type)" />
+        </van-cell-group>
+      </div>
+
+      <div v-if="historyData?.parse_result" class="parse-section">
+        <h3 class="section-title">解析结果</h3>
+        <ParseSummaryCard :summary="historyData.parse_result.summary" />
+        
+        <div class="entities-section">
+          <h4 class="subsection-title">结构化信息</h4>
+          <van-cell-group>
+            <van-cell v-if="historyData.parse_result.entities.title" title="标题" :value="historyData.parse_result.entities.title" />
+            <van-cell v-if="historyData.parse_result.entities.date" title="日期" :value="historyData.parse_result.entities.date" />
+            <van-cell v-if="historyData.parse_result.entities.start_time" title="开始时间" :value="historyData.parse_result.entities.start_time" />
+            <van-cell v-if="historyData.parse_result.entities.end_time" title="结束时间" :value="historyData.parse_result.entities.end_time" />
+            <van-cell v-if="historyData.parse_result.entities.deadline" title="截止时间" :value="historyData.parse_result.entities.deadline" />
+            <van-cell v-if="historyData.parse_result.entities.location" title="地点" :value="historyData.parse_result.entities.location" />
+            <van-cell v-if="historyData.parse_result.entities.address" title="地址" :value="historyData.parse_result.entities.address" />
+            <van-cell v-if="historyData.parse_result.entities.link" title="链接" :value="historyData.parse_result.entities.link" is-link @click="openLink(historyData.parse_result.entities.link)" />
+          </van-cell-group>
+        </div>
+      </div>
+
+      <div v-if="historyData?.action_records && historyData.action_records.length > 0" class="action-section">
+        <h3 class="section-title">动作记录</h3>
+        <van-cell-group>
+          <van-cell 
+            v-for="record in historyData.action_records" 
+            :key="record.id"
+            :title="getActionLabel(record.action_type)"
+            :value="formatDate(record.created_at)"
+            is-link
+          >
+            <template #default>
+              <div class="action-record">
+                <div class="action-type">{{ getActionLabel(record.action_type) }}</div>
+                <div class="action-status" :class="record.execute_status === 'success' ? 'success' : 'failed'">
+                  {{ record.execute_status === 'success' ? '成功' : '失败' }}
+                </div>
+                <div class="action-time">{{ formatDate(record.created_at) }}</div>
+              </div>
+            </template>
+          </van-cell>
+        </van-cell-group>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getHistoryById } from '../api/history';
-import { HistoryItem } from '../types/history';
-import { ParseResult } from '../types/parse';
-import ParseSummaryCard from '../components/ParseSummaryCard.vue';
-import ActionButtons from '../components/ActionButtons.vue';
 import LoadingBlock from '../components/LoadingBlock.vue';
-import EmptyState from '../components/EmptyState.vue';
-import { getActionLabel } from '../utils/actions';
+import ParseSummaryCard from '../components/ParseSummaryCard.vue';
+import { getHistoryDetail } from '../api/history';
 import { formatDate } from '../utils/format';
+import { getSceneLabel } from '../utils/scene';
+import { getActionLabel } from '../utils/actions';
 
 const route = useRoute();
 const router = useRouter();
-const imageId = computed(() => parseInt(route.params.id as string));
-const historyItem = ref<HistoryItem | null>(null);
+
+const imageId = Number(route.params.id);
 const loading = ref(true);
+const error = ref(false);
+const historyData = ref<any>(null);
 
-const parseResult = computed<ParseResult | null>(() => {
-  if (!historyItem.value?.parse_result) return null;
-  return {
-    scene_type: historyItem.value.parse_result.scene_type,
-    summary: historyItem.value.parse_result.summary,
-    entities: historyItem.value.parse_result.entities,
-    suggested_actions: historyItem.value.parse_result.suggested_actions
-  };
-});
-
-const imageUrl = computed(() => {
-  return `/uploads/${historyItem.value?.image.file_name || ''}`;
-});
-
-const loadHistoryDetail = async () => {
+const loadData = async () => {
   loading.value = true;
+  error.value = false;
   try {
-    const result = await getHistoryById(imageId.value);
-    historyItem.value = result;
-  } catch (error) {
-    console.error('Load history detail error:', error);
-    historyItem.value = null;
+    const result = await getHistoryDetail(imageId);
+    historyData.value = result;
+  } catch (err) {
+    console.error('加载历史详情失败:', err);
+    error.value = true;
   } finally {
     loading.value = false;
   }
 };
 
+const openLink = (link: string) => {
+  if (link) {
+    window.open(link, '_blank');
+  }
+};
+
 const goBack = () => {
-  router.back();
+  router.push('/history');
 };
 
 onMounted(() => {
-  loadHistoryDetail();
+  loadData();
 });
 </script>
 
@@ -133,117 +126,100 @@ onMounted(() => {
   background-color: #f5f5f5;
 }
 
-.content {
-  padding-top: 60px;
-  padding: 60px 16px 20px;
+.loading-container,
+.error-container {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.error-container {
+  gap: 20px;
 }
 
 .detail-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  padding: 20px;
 }
 
 .image-container {
-  background-color: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+  text-align: center;
 }
 
-.original-image {
+.image-container img {
+  max-width: 100%;
   max-height: 300px;
-  border-radius: 4px;
-  margin-bottom: 12px;
+  border-radius: 8px;
+  object-fit: cover;
 }
 
-.image-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 14px;
-  color: #666;
+.info-section {
+  margin-bottom: 20px;
 }
 
-.info-item {
-  display: flex;
-  align-items: center;
-}
-
-.info-item van-icon {
-  margin-right: 8px;
-}
-
-.no-parse-result {
+.parse-section,
+.action-section {
+  margin-bottom: 20px;
   background-color: #fff;
-  padding: 24px;
   border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #999;
+  padding: 16px;
 }
 
-.no-parse-result van-icon {
-  margin-right: 8px;
-}
-
-.action-records {
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
-.records-list {
-  padding-top: 8px;
-}
-
-.record-item {
-  margin-bottom: 8px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.record-content {
-  padding: 8px 0;
-}
-
-.record-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.record-type {
-  font-size: 14px;
-  font-weight: 600;
+.section-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 16px;
   color: #333;
 }
 
-.record-time {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 8px;
-}
-
-.record-result {
-  font-size: 12px;
-  color: #666;
-  background-color: #f5f5f5;
-  padding: 8px;
-  border-radius: 4px;
-  overflow-x: auto;
-}
-
-.record-result pre {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-.empty-records {
-  text-align: center;
-  padding: 20px 0;
-  color: #999;
+.subsection-title {
   font-size: 14px;
+  font-weight: bold;
+  margin: 16px 0 8px 0;
+  color: #666;
+}
+
+.action-record {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-type {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.action-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.action-status.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+}
+
+.action-status.failed {
+  background-color: #fff1f0;
+  color: #ff4d4f;
+}
+
+.action-time {
+  font-size: 12px;
+  color: #999;
+}
+
+@media (max-width: 480px) {
+  .detail-content {
+    padding: 15px;
+  }
 }
 </style>

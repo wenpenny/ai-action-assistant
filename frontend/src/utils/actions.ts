@@ -1,26 +1,19 @@
-export const actionTypeMap = {
-  create_todo: {
-    label: '创建待办',
-    icon: 'todo-list'
-  },
-  set_reminder: {
-    label: '设置提醒',
-    icon: 'bell'
-  },
-  open_map: {
-    label: '打开地图',
-    icon: 'location'
-  },
-  export_calendar: {
-    label: '导出日历',
-    icon: 'calendar'
-  }
+export const getActionLabel = (action: string): string => {
+  const labels: Record<string, string> = {
+    create_todo: '创建待办',
+    set_reminder: '设置提醒',
+    open_map: '打开地图',
+    export_calendar: '导出日历'
+  };
+  return labels[action] || action;
 };
 
-export const getActionLabel = (actionType: string) => {
-  return actionTypeMap[actionType as keyof typeof actionTypeMap]?.label || '未知动作';
-};
-
-export const getActionIcon = (actionType: string) => {
-  return actionTypeMap[actionType as keyof typeof actionTypeMap]?.icon || 'help-o';
+export const getActionIcon = (action: string): string => {
+  const icons: Record<string, string> = {
+    create_todo: 'todo-list',
+    set_reminder: 'clock',
+    open_map: 'location',
+    export_calendar: 'calendar'
+  };
+  return icons[action] || 'star';
 };

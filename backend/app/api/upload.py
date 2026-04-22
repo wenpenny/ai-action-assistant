@@ -10,7 +10,7 @@ from ..utils.file_utils import generate_unique_filename, is_valid_image_file, en
 
 router = APIRouter()
 
-@router.post("/upload", response_model=UploadResponse)
+@router.post("/", response_model=UploadResponse)
 async def upload_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)

@@ -2,102 +2,90 @@
   <div class="image-uploader">
     <van-uploader
       v-model="fileList"
+      :after-read="handleAfterRead"
       :max-count="1"
-      :after-read="afterRead"
-      :before-read="beforeRead"
       :disabled="loading"
-      accept="image/*"
-      capture="camera"
-      upload-text="点击上传截图"
+      :upload-text="loading ? '上传中...' : '点击上传截图'"
+      :preview-full-image="false"
+      :multiple="false"
     >
-      <div class="uploader-content" v-if="fileList.length === 0">
-        <van-icon name="photograph" size="48" color="#999" />
-        <p class="uploader-text">点击或拖拽上传截图</p>
-        <p class="uploader-hint">支持 JPG、PNG、GIF 等格式</p>
+      <div class="upload-area">
+        <van-icon name="camera" size="48" />
+        <p class="upload-text">{{ loading ? '上传中...' : '点击或拖拽上传截图' }}</p>
+        <p class="upload-hint">支持 JPG、PNG、GIF 格式</p>
       </div>
     </van-uploader>
-    <van-loading v-if="loading" class="loading" type="spinner" color="#1989fa" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import { showToast } from 'vant';
-import { uploadImage } from '../api/upload';
-import { parseImage } from '../api/parse';
-import { useRouter } from 'vue-router';
+import { uploadImage, parseImage } from '../api/upload';
 
-const router = useRouter();
+const emit = defineEmits<{
+  'upload-success': [imageId: number]
+}>();
+
 const fileList = ref<any[]>([]);
 const loading = ref(false);
 
-const beforeRead = (file: File) => {
-  const maxSize = 10 * 1024 * 1024; // 10MB
-  if (file.size > maxSize) {
-    showToast('图片大小不能超过 10MB');
-    return false;
-  }
-  return true;
-};
-
-const afterRead = async (file: any) => {
+const handleAfterRead = async (file: any) => {
   loading.value = true;
+  
   try {
     // 上传图片
-    const uploadResponse = await uploadImage(file.file);
-    // 解析图片
-    await parseImage(uploadResponse.image_id);
-    // 跳转到结果页
-    router.push(`/result/${uploadResponse.image_id}`);
+    const formData = new FormData();
+    formData.append('file', file.file);
+    
+    const uploadResult = await uploadImage(formData);
+    
+    // 上传成功后自动解析
+    await parseImage(uploadResult.image_id);
+    
+    // 通知父组件上传成功
+    emit('upload-success', uploadResult.image_id);
   } catch (error) {
-    showToast('处理失败，请重试');
-    console.error('Upload error:', error);
+    showToast('上传失败，请重试');
+    console.error('上传失败:', error);
   } finally {
     loading.value = false;
+    fileList.value = [];
   }
 };
 </script>
 
 <style scoped>
 .image-uploader {
-  position: relative;
-  margin: 20px 0;
+  margin-bottom: 20px;
 }
 
-.uploader-content {
+.upload-area {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  background-color: #fafafa;
-  border: 1px dashed #d9d9d9;
+  border: 2px dashed #d9d9d9;
   border-radius: 8px;
+  background-color: #fafafa;
   transition: all 0.3s;
 }
 
-.uploader-content:hover {
-  border-color: #1989fa;
-  background-color: #f0f9ff;
+.upload-area:hover {
+  border-color: #1890ff;
+  background-color: #e6f7ff;
 }
 
-.uploader-text {
-  margin-top: 12px;
+.upload-text {
+  margin: 10px 0 5px 0;
   font-size: 16px;
-  color: #666;
+  color: #333;
 }
 
-.uploader-hint {
-  margin-top: 8px;
+.upload-hint {
   font-size: 12px;
   color: #999;
-}
-
-.loading {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 10;
+  margin: 0;
 }
 </style>

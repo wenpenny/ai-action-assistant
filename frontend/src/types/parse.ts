@@ -1,19 +1,19 @@
 export interface Entities {
-  title: string | null;
-  date: string | null;
-  start_time: string | null;
-  end_time: string | null;
-  deadline: string | null;
-  location: string | null;
-  address: string | null;
-  link: string | null;
-  task_name: string | null;
+  title: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  deadline: string;
+  location: string;
+  address: string;
+  link: string;
+  task_name: string;
   required_materials: string[] | null;
-  departure_time: string | null;
-  departure_location: string | null;
-  destination: string | null;
-  hotel_name: string | null;
-  booking_no: string | null;
+  departure_time: string;
+  departure_location: string;
+  destination: string;
+  hotel_name: string;
+  booking_no: string;
 }
 
 export interface ParseResult {

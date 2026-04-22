@@ -8,7 +8,7 @@ from ..services.action_service import ActionService
 router = APIRouter()
 action_service = ActionService()
 
-@router.post("/action/execute", response_model=ActionResponse)
+@router.post("/execute", response_model=ActionResponse)
 async def execute_action(
     action_request: ActionRequest,
     db: Session = Depends(get_db)

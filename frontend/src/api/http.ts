@@ -8,10 +8,11 @@ const http = axios.create({
   }
 });
 
+// 响应拦截器
 http.interceptors.response.use(
   response => response.data,
   error => {
-    console.error('API Error:', error);
+    console.error('API 请求错误:', error);
     return Promise.reject(error);
   }
 );

@@ -1,14 +1,12 @@
 <template>
   <div class="loading-block">
-    <van-loading type="spinner" color="#1989fa" size="36px" />
-    <p class="loading-text">{{ text }}</p>
+    <van-loading type="spinner" size="48px" />
+    <p class="loading-text">加载中...</p>
   </div>
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
-  text?: string;
-}>();
+// LoadingBlock 组件
 </script>
 
 <style scoped>
@@ -18,7 +16,7 @@ const props = defineProps<{
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  text-align: center;
+  min-height: 300px;
 }
 
 .loading-text {

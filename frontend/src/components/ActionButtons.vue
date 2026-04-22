@@ -1,162 +1,126 @@
 <template>
-  <van-card class="action-buttons">
-    <template #title>
-      建议动作
-    </template>
-    <div class="buttons-container">
+  <div class="action-buttons">
+    <div v-if="actions.length === 0" class="no-actions">
+      <van-empty description="暂无建议动作" />
+    </div>
+    <div v-else class="button-grid">
       <van-button
-        v-for="action in parseResult?.suggested_actions || []"
+        v-for="action in actions"
         :key="action"
-        :type="actionType === action ? 'primary' : 'default'"
-        :loading="loading"
-        :disabled="loading"
+        :type="getActionType(action)"
+        :icon="getActionIcon(action)"
+        block
+        :loading="loadingActions.includes(action)"
+        @click="handleExecuteAction(action)"
         class="action-button"
-        @click="executeAction(action)"
       >
-        <van-icon :name="getActionIcon(action)" slot="left" />
         {{ getActionLabel(action) }}
       </van-button>
-      <div v-if="(parseResult?.suggested_actions || []).length === 0" class="empty-actions">
-        暂无建议动作
-      </div>
     </div>
-    <div v-if="actionResult" class="action-result">
-      <van-icon :name="actionResult.success ? 'success' : 'cross'" :color="actionResult.success ? '#52c41a' : '#ff4d4f'" />
-      <span>{{ actionResult.message }}</span>
-      <a v-if="actionResult.data.map_url" :href="actionResult.data.map_url" target="_blank" class="result-link">
-        打开地图
-      </a>
-      <a v-if="actionResult.data.calendar_url" :href="actionResult.data.calendar_url" target="_blank" class="result-link">
-        下载日历
-      </a>
-    </div>
-  </van-card>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import { showToast } from 'vant';
-import { ParseResult } from '../types/parse';
-import { ActionRequest, ActionResponse } from '../types/action';
-import { executeAction as apiExecuteAction } from '../api/action';
+import { executeAction } from '../api/action';
 import { getActionLabel, getActionIcon } from '../utils/actions';
+import type { Entities } from '../types/parse';
 
 const props = defineProps<{
-  parseResult: ParseResult | null;
-  imageId: number;
+  actions: string[]
+  entities: Entities
+  imageId: number
 }>();
 
-const loading = ref(false);
-const actionType = ref<string | null>(null);
-const actionResult = ref<ActionResponse | null>(null);
+const emit = defineEmits<{
+  'action-success': [result: any]
+}>();
 
-const executeAction = async (action: string) => {
-  if (!props.parseResult) return;
-  
-  actionType.value = action;
-  loading.value = true;
-  actionResult.value = null;
+const loadingActions = ref<string[]>([]);
+
+const getActionType = (action: string) => {
+  const types: Record<string, any> = {
+    create_todo: 'primary',
+    set_reminder: 'warning',
+    open_map: 'info',
+    export_calendar: 'success'
+  };
+  return types[action] || 'default';
+};
+
+const handleExecuteAction = async (actionType: string) => {
+  loadingActions.value.push(actionType);
   
   try {
-    const payload = generateActionPayload(action);
-    const request: ActionRequest = {
-      image_id: props.imageId,
-      action_type: action as any,
-      payload
-    };
+    const payload = buildActionPayload(actionType, props.entities);
+    const result = await executeAction(props.imageId, actionType, payload);
     
-    const result = await apiExecuteAction(request);
-    actionResult.value = result;
-    showToast(result.message);
+    emit('action-success', result);
+    showToast(result.message || '动作执行成功');
+    
+    if (result.data?.map_url) {
+      window.open(result.data.map_url, '_blank');
+    }
+    if (result.data?.ics_path) {
+      window.open(result.data.ics_path, '_blank');
+    }
   } catch (error) {
-    showToast('执行失败，请重试');
-    console.error('Action error:', error);
+    showToast('动作执行失败，请重试');
+    console.error('动作执行失败:', error);
   } finally {
-    loading.value = false;
-    actionType.value = null;
+    loadingActions.value = loadingActions.value.filter(action => action !== actionType);
   }
 };
 
-const generateActionPayload = (action: string) => {
-  const payload: any = {};
-  const entities = props.parseResult?.entities;
-  
-  if (!entities) return payload;
-  
-  switch (action) {
+const buildActionPayload = (actionType: string, entities: Entities) => {
+  switch (actionType) {
     case 'create_todo':
-      payload.title = entities.title || entities.task_name || '未命名任务';
-      payload.deadline = entities.deadline || (entities.date ? `${entities.date} ${entities.start_time || '00:00'}` : undefined);
-      payload.priority = 'medium';
-      break;
+      return {
+        title: entities.title || 'Untitled Todo',
+        deadline: entities.deadline || entities.date
+      };
     case 'set_reminder':
-      payload.title = entities.title || '提醒';
-      payload.remind_at = entities.date ? `${entities.date} ${entities.start_time || '00:00'}` : undefined;
-      break;
+      return {
+        title: entities.title || 'Untitled Reminder',
+        remind_at: entities.deadline || `${entities.date} ${entities.start_time}`
+      };
     case 'open_map':
-      payload.address = entities.address;
-      payload.location = entities.location;
-      break;
+      return {
+        location: entities.location || entities.address
+      };
     case 'export_calendar':
-      payload.title = entities.title || '事件';
-      payload.start_time = entities.date ? `${entities.date} ${entities.start_time || '00:00'}` : undefined;
-      payload.end_time = entities.date && entities.end_time ? `${entities.date} ${entities.end_time}` : undefined;
-      payload.location = entities.location;
-      payload.description = props.parseResult?.summary;
-      break;
+      return {
+        title: entities.title || 'Untitled Event',
+        date: entities.date,
+        start_time: entities.start_time,
+        end_time: entities.end_time,
+        location: entities.location,
+        description: `来自 AI 行动助手的日历事件`
+      };
+    default:
+      return {};
   }
-  
-  return payload;
 };
 </script>
 
 <style scoped>
 .action-buttons {
-  margin: 16px 0;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
 }
 
-.buttons-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding-top: 8px;
+.button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .action-button {
-  flex: 1;
-  min-width: 120px;
+  margin-bottom: 0;
 }
 
-.empty-actions {
+.no-actions {
+  padding: 40px 0;
   text-align: center;
-  padding: 20px 0;
-  color: #999;
-  font-size: 14px;
-}
-
-.action-result {
-  margin-top: 16px;
-  padding: 12px;
-  background-color: #f5f5f5;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-}
-
-.action-result van-icon {
-  margin-right: 8px;
-}
-
-.result-link {
-  margin-left: 12px;
-  color: #1989fa;
-  text-decoration: none;
-}
-
-.result-link:hover {
-  text-decoration: underline;
 }
 </style>

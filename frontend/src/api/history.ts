@@ -1,10 +1,9 @@
 import http from './http';
-import { HistoryItem } from '../types/history';
 
-export const getHistory = async (): Promise<HistoryItem[]> => {
+export const getHistory = async (): Promise<any[]> => {
   return http.get('/history');
 };
 
-export const getHistoryById = async (imageId: number): Promise<HistoryItem> => {
+export const getHistoryDetail = async (imageId: number): Promise<any> => {
   return http.get(`/history/${imageId}`);
 };

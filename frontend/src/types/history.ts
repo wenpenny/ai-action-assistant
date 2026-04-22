@@ -1,29 +1,25 @@
-import { ParseResult } from './parse';
-
-export interface ImageInfo {
-  id: number;
+export interface HistoryItem {
+  image_id: number;
   file_name: string;
   file_path: string;
   created_at: string;
   parse_status: string;
+  scene_type: string | null;
+  summary: string | null;
 }
 
-export interface ActionRecord {
-  id: number;
-  action_type: string;
-  action_payload: any;
-  execute_status: string;
-  execute_result: any;
-  created_at: string;
-}
-
-export interface HistoryItem {
-  image: ImageInfo;
-  parse_result?: ParseResult & {
-    id: number;
+export interface HistoryDetail {
+  image: {
     image_id: number;
+    file_name: string;
+    file_path: string;
     created_at: string;
-    updated_at?: string;
   };
-  action_records: ActionRecord[];
+  parse_result: {
+    scene_type: string;
+    summary: string;
+    entities: any;
+    suggested_actions: string[];
+  } | null;
+  action_records: any[];
 }

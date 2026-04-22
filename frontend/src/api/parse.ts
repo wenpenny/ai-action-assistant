@@ -1,10 +1,14 @@
 import http from './http';
-import { ParseResult } from '../types/parse';
+import type { Entities } from '../types/parse';
 
-export const parseImage = async (imageId: number): Promise<ParseResult> => {
-  return http.post(`/parse/${imageId}`);
+interface ParseUpdateRequest {
+  entities: Entities;
+}
+
+export const getParseResult = async (imageId: number): Promise<any> => {
+  return http.get(`/parse/${imageId}`);
 };
 
-export const updateParseResult = async (imageId: number, data: Partial<ParseResult>): Promise<ParseResult> => {
+export const updateParseResult = async (imageId: number, data: ParseUpdateRequest): Promise<any> => {
   return http.put(`/parse/${imageId}`, data);
 };

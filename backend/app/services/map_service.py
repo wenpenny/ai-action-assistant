@@ -1,18 +1,13 @@
-from typing import Optional
+import urllib.parse
 
 class MapService:
-    def get_map_url(self, address: Optional[str] = None, location: Optional[str] = None) -> str:
+    def generate_map_url(self, location: str) -> str:
         """生成地图 URL"""
-        # 使用百度地图 API 生成地图 URL
-        # 实际使用时可以根据需要选择其他地图服务
-        base_url = "https://map.baidu.com"
+        # 对位置进行 URL 编码
+        encoded_location = urllib.parse.quote(location)
         
-        if address:
-            # 如果有具体地址，直接搜索地址
-            return f"{base_url}?q={address}"
-        elif location:
-            # 如果只有地点名称，搜索地点
-            return f"{base_url}?q={location}"
-        else:
-            # 没有地址信息，返回默认地图
-            return base_url
+        # 生成通用地图搜索链接
+        # 使用 Google Maps 的通用搜索链接格式
+        map_url = f"https://www.google.com/maps/search/?api=1&query={encoded_location}"
+        
+        return map_url

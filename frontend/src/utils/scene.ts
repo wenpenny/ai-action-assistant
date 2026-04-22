@@ -1,26 +1,19 @@
-export const sceneTypeMap = {
-  schedule: {
-    label: '日程',
-    color: '#1989fa'
-  },
-  task: {
-    label: '任务',
-    color: '#ff9900'
-  },
-  travel: {
-    label: '出行',
-    color: '#52c41a'
-  },
-  other: {
-    label: '其他',
-    color: '#999999'
-  }
+export const getSceneLabel = (scene: string): string => {
+  const labels: Record<string, string> = {
+    schedule: '日程',
+    task: '任务',
+    travel: '出行',
+    unknown: '未知'
+  };
+  return labels[scene] || scene;
 };
 
-export const getSceneLabel = (sceneType: string) => {
-  return sceneTypeMap[sceneType as keyof typeof sceneTypeMap]?.label || '未知';
-};
-
-export const getSceneColor = (sceneType: string) => {
-  return sceneTypeMap[sceneType as keyof typeof sceneTypeMap]?.color || '#999999';
+export const getSceneColor = (scene: string): string => {
+  const colors: Record<string, string> = {
+    schedule: '#1890ff',
+    task: '#faad14',
+    travel: '#52c41a',
+    unknown: '#999'
+  };
+  return colors[scene] || '#999';
 };
