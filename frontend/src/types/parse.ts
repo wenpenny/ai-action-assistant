@@ -20,6 +20,7 @@ export interface ActionPlanItem {
   action_type: string;
   label: string;
   payload: Record<string, any>;
+  is_valid?: boolean;
 }
 
 export interface ParseItem {

@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 import requests
 import json
 import logging
+from datetime import datetime
 from ..core.config import (
     LLM_SERVICE_TYPE,
     BLUELM_API_URL, BLUELM_API_KEY, BLUELM_MODEL,
@@ -140,6 +141,9 @@ class BlueLMService:
 
 请只返回 JSON 格式的结果，不要包含其他文字说明。"""
 
+            # 获取当前日期
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            
             payload = {
                 "model": BLUELM_MODEL,
                 "messages": [
@@ -149,7 +153,7 @@ class BlueLMService:
                     },
                     {
                         "role": "user",
-                        "content": f"请分析以下事项文本，提取结构化信息：\n\n{segment}"
+                        "content": f"当前日期：{current_date}\n\n请分析以下事项文本，提取结构化信息：\n\n{segment}"
                     }
                 ],
                 "temperature": 0.3,
@@ -336,6 +340,9 @@ class DeepSeekService:
 
 请只返回 JSON 格式的结果，不要包含其他文字说明。"""
 
+            # 获取当前日期
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            
             payload = {
                 "model": DEEPSEEK_MODEL,
                 "messages": [
@@ -345,7 +352,7 @@ class DeepSeekService:
                     },
                     {
                         "role": "user",
-                        "content": f"请分析以下事项文本，提取结构化信息：\n\n{segment}"
+                        "content": f"当前日期：{current_date}\n\n请分析以下事项文本，提取结构化信息：\n\n{segment}"
                     }
                 ],
                 "temperature": 0.3,

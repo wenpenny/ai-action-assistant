@@ -22,9 +22,54 @@
     </div>
 
     <div v-else class="result-content" :class="{ 'animate-in': mounted }">
+      <!-- 统计卡片 -->
+      <div class="stats-card" :class="{ 'animate-in': mounted }">
+        <div class="stat-item">
+          <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <van-icon name="todo-list-o" size="24" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ parseResponse?.items?.length || 0 }}</div>
+            <div class="stat-label">已识别事项</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <van-icon name="play-circle-o" size="24" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ totalActions }}</div>
+            <div class="stat-label">建议动作</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);">
+            <van-icon name="checked" size="24" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ validActions }}</div>
+            <div class="stat-label">可直接执行</div>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon" style="background: linear-gradient(135deg, #faad14 0%, #ffc53d 100%);">
+            <van-icon name="warning" size="24" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ totalActions - validActions }}</div>
+            <div class="stat-label">需补全信息</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图片预览 -->
       <div class="image-card">
         <div class="image-wrapper">
-          <img :src="imageUrl" :alt="`上传的图片 ${imageId}`" />
+          <img :src="imageUrl" :alt="`上传的图片 ${imageId}`" @error="handleImageError" />
+          <div v-if="imageError" class="image-error">
+            <van-icon name="photo-fail" size="40" />
+            <p>图片加载失败</p>
+          </div>
           <div class="image-overlay">
             <van-icon name="scan" size="24" />
           </div>
@@ -35,11 +80,12 @@
         </div>
       </div>
 
+      <!-- OCR 文本 -->
       <div class="ocr-section" :class="{ 'animate-in': mounted }">
         <div class="section-header" @click="ocrCollapsed = !ocrCollapsed">
           <div class="section-title-wrapper">
             <van-icon name="records" size="20" />
-            <span>OCR 识别结果</span>
+            <span>原始 OCR 文本</span>
           </div>
           <van-icon :name="ocrCollapsed ? 'arrow-down' : 'arrow-up'" size="16" />
         </div>
@@ -52,6 +98,7 @@
         </transition>
       </div>
 
+      <!-- 事项列表 -->
       <div class="items-container" :class="{ 'animate-in': mounted }">
         <div class="section-header-main">
           <h2 class="section-title">
@@ -74,20 +121,30 @@
             class="item-card"
             :style="{ animationDelay: `${index * 0.1}s` }"
           >
+            <!-- 事项头部 -->
             <div class="item-header">
-              <van-tag :color="getSceneColor(item.scene_type)" size="medium">
-                {{ getSceneLabel(item.scene_type) }}
-              </van-tag>
-              <span class="item-id">ID: {{ item.item_id }}</span>
+              <div class="header-left">
+                <van-tag :color="getSceneColor(item.scene_type)" size="medium">
+                  {{ getSceneLabel(item.scene_type) }}
+                </van-tag>
+                <span class="item-id">ID: {{ item.item_id }}</span>
+              </div>
+              <div class="header-right">
+                <van-tag :type="getItemStatusType(item)">
+                  {{ getItemStatusText(item) }}
+                </van-tag>
+              </div>
             </div>
 
+            <!-- 事项摘要 -->
             <div class="item-summary">
               {{ item.summary }}
             </div>
 
-            <div class="item-entities">
+            <!-- 关键实体 -->
+            <div class="item-entities" v-if="hasEntities(item)">
               <div v-if="item.entities.title" class="entity-item">
-                <div class="entity-icon">
+                <div class="entity-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                   <van-icon name="label-o" size="14" />
                 </div>
                 <div class="entity-content">
@@ -96,7 +153,7 @@
                 </div>
               </div>
               <div v-if="item.entities.date || item.entities.deadline" class="entity-item">
-                <div class="entity-icon">
+                <div class="entity-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                   <van-icon name="clock-o" size="14" />
                 </div>
                 <div class="entity-content">
@@ -108,7 +165,7 @@
                 </div>
               </div>
               <div v-if="item.entities.location || item.entities.address" class="entity-item">
-                <div class="entity-icon">
+                <div class="entity-icon" style="background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);">
                   <van-icon name="location-o" size="14" />
                 </div>
                 <div class="entity-content">
@@ -116,9 +173,28 @@
                   <span class="entity-value">{{ item.entities.location || item.entities.address }}</span>
                 </div>
               </div>
+              <div v-if="item.entities.link" class="entity-item">
+                <div class="entity-icon" style="background: linear-gradient(135deg, #faad14 0%, #ffc53d 100%);">
+                  <van-icon name="link" size="14" />
+                </div>
+                <div class="entity-content">
+                  <span class="entity-label">链接</span>
+                  <span class="entity-value">{{ item.entities.link }}</span>
+                </div>
+              </div>
+              <div v-if="item.entities.required_materials && item.entities.required_materials.length > 0" class="entity-item">
+                <div class="entity-icon" style="background: linear-gradient(135deg, #722ed1 0%, #b37feb 100%);">
+                  <van-icon name="paperclip" size="14" />
+                </div>
+                <div class="entity-content">
+                  <span class="entity-label">材料</span>
+                  <span class="entity-value">{{ item.entities.required_materials.join(', ') }}</span>
+                </div>
+              </div>
             </div>
 
-            <div class="item-actions">
+            <!-- 动作按钮 -->
+            <div class="item-actions" v-if="item.action_plan && item.action_plan.length > 0">
               <ActionButtons
                 :action-plan="item.action_plan"
                 :imageId="imageId"
@@ -127,14 +203,25 @@
               />
             </div>
 
+            <!-- 底部操作 -->
             <div class="item-footer">
               <van-button 
                 size="small" 
                 type="default" 
                 @click="editItem(item)"
                 icon="edit"
+                class="edit-button"
               >
                 编辑
+              </van-button>
+              <van-button 
+                size="small" 
+                type="danger" 
+                @click="confirmDeleteItem(item)"
+                icon="delete"
+                class="delete-button"
+              >
+                删除
               </van-button>
             </div>
           </div>
@@ -142,14 +229,15 @@
       </div>
     </div>
 
+    <!-- 编辑弹窗 -->
     <van-popup v-model:show="showEditPopup" position="bottom" round class="edit-popup-wrapper">
       <div class="edit-popup">
         <div class="edit-popup-header">
           <h3>编辑事项</h3>
-          <van-icon name="cross" @click="showEditPopup = false" />
+          <van-icon name="cross" @click="showEditPopup = false" class="close-icon" />
         </div>
         <EntityEditor
-          :entities="editingItem?.entities || {}"
+          :entities="editingItem?.entities || { title: '', date: '', start_time: '', end_time: '', deadline: '', location: '', address: '', link: '', task_name: '', required_materials: null, departure_time: '', departure_location: '', destination: '', hotel_name: '', booking_no: '' }"
           :scene-type="editingItem?.scene_type"
           @save="updateItem"
           @cancel="showEditPopup = false"
@@ -162,7 +250,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { showToast, showConfirmDialog } from 'vant';
+import { showToast, showDialog } from 'vant';
 import LoadingBlock from '../components/LoadingBlock.vue';
 import ActionButtons from '../components/ActionButtons.vue';
 import EntityEditor from '../components/EntityEditor.vue';
@@ -181,14 +269,77 @@ const parseResponse = ref<ParseResponse | null>(null);
 const ocrCollapsed = ref(true);
 const showEditPopup = ref(false);
 const editingItem = ref<ParseItem | null>(null);
+const imageError = ref(false);
 
 const imageUrl = computed(() => {
-  return `/api/uploads/${imageId}.jpg`;
+  const url = route.query.imageUrl as string;
+  if (url) {
+    if (url.startsWith('/')) {
+      return `http://127.0.0.1:8000${url}`;
+    }
+    return url;
+  }
+  //  fallback to old method
+  const fallbackUrl = `/uploads/${imageId}.jpg`;
+  if (fallbackUrl.startsWith('/')) {
+    return `http://127.0.0.1:8000${fallbackUrl}`;
+  }
+  return fallbackUrl;
 });
+
+const totalActions = computed(() => {
+  if (!parseResponse.value?.items) return 0;
+  return parseResponse.value.items.reduce((sum, item) => {
+    return sum + (item.action_plan?.length || 0);
+  }, 0);
+});
+
+const validActions = computed(() => {
+  if (!parseResponse.value?.items) return 0;
+  return parseResponse.value.items.reduce((sum, item) => {
+    return sum + (item.action_plan?.filter(action => action.is_valid).length || 0);
+  }, 0);
+});
+
+const handleImageError = () => {
+  imageError.value = true;
+};
+
+const hasEntities = (item: ParseItem) => {
+  const entities = item.entities;
+  return entities.title || 
+         entities.date || 
+         entities.deadline || 
+         entities.location || 
+         entities.address || 
+         entities.link || 
+         (entities.required_materials && entities.required_materials.length > 0);
+};
+
+const getItemStatusType = (item: ParseItem) => {
+  const validActionCount = item.action_plan?.filter(action => action.is_valid).length || 0;
+  const totalActionCount = item.action_plan?.length || 0;
+  
+  if (totalActionCount === 0) return 'default';
+  if (validActionCount === 0) return 'danger';
+  if (validActionCount === totalActionCount) return 'success';
+  return 'warning';
+};
+
+const getItemStatusText = (item: ParseItem) => {
+  const validActionCount = item.action_plan?.filter(action => action.is_valid).length || 0;
+  const totalActionCount = item.action_plan?.length || 0;
+  
+  if (totalActionCount === 0) return '未处理';
+  if (validActionCount === 0) return '需补全';
+  if (validActionCount === totalActionCount) return '已完成';
+  return '部分完成';
+};
 
 const loadData = async () => {
   loading.value = true;
   error.value = false;
+  imageError.value = false;
   try {
     const result = await getParseResult(imageId);
     parseResponse.value = result;
@@ -206,6 +357,32 @@ const loadData = async () => {
 const editItem = (item: ParseItem) => {
   editingItem.value = { ...item };
   showEditPopup.value = true;
+};
+
+const confirmDeleteItem = (item: ParseItem) => {
+  showDialog({
+    title: '确认删除',
+    message: `确定要删除事项"${item.summary}"吗？`,
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    confirmButtonColor: '#ee0a24'
+  }).then(() => {
+    deleteItem(item);
+  }).catch(() => {
+    // 取消删除
+  });
+};
+
+const deleteItem = (item: ParseItem) => {
+  // 从本地状态中移除事项
+  if (!parseResponse.value) return;
+  
+  const updatedItems = parseResponse.value.items.filter(i => i.item_id !== item.item_id);
+  parseResponse.value = {
+    ...parseResponse.value,
+    items: updatedItems
+  };
+  showToast('删除成功');
 };
 
 const updateItem = async () => {
@@ -229,6 +406,7 @@ const updateItem = async () => {
 
 const handleActionSuccess = (result: any) => {
   showToast(result.message || '动作执行成功');
+  loadData();
 };
 
 const goBack = () => {
@@ -321,12 +499,18 @@ onMounted(() => {
 }
 
 .result-content {
+  max-width: 430px;
+  margin: 0 auto;
   padding: 20px;
   position: relative;
   z-index: 1;
 }
 
 .result-content.animate-in .image-card {
+  animation: slideInUp 0.5s ease forwards;
+}
+
+.result-content.animate-in .stats-card {
   animation: slideInUp 0.5s ease forwards;
 }
 
@@ -351,6 +535,55 @@ onMounted(() => {
   }
 }
 
+.stats-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-around;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 80px;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-content {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #888;
+}
+
 .image-card {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 20px;
@@ -358,6 +591,7 @@ onMounted(() => {
   margin-bottom: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   position: relative;
+  opacity: 0;
 }
 
 .image-wrapper {
@@ -371,6 +605,26 @@ onMounted(() => {
   max-height: 250px;
   object-fit: cover;
   display: block;
+}
+
+.image-error {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  color: #999;
+  gap: 10px;
+}
+
+.image-error p {
+  margin: 0;
+  font-size: 14px;
 }
 
 .image-overlay {
@@ -536,6 +790,12 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .item-id {
   font-size: 12px;
   color: #999;
@@ -570,7 +830,6 @@ onMounted(() => {
 .entity-icon {
   width: 28px;
   height: 28px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -604,7 +863,20 @@ onMounted(() => {
 
 .item-footer {
   display: flex;
-  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.edit-button {
+  flex: 1;
+  border-radius: 8px;
+}
+
+.delete-button {
+  flex: 1;
+  border-radius: 8px;
 }
 
 .edit-popup-wrapper {
@@ -633,6 +905,12 @@ onMounted(() => {
   color: #333;
 }
 
+.close-icon {
+  font-size: 20px;
+  color: #999;
+  cursor: pointer;
+}
+
 @media (max-width: 480px) {
   .result-content {
     padding: 15px;
@@ -648,6 +926,15 @@ onMounted(() => {
   
   .section-title {
     font-size: 18px;
+  }
+  
+  .stats-card {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .stat-item {
+    flex: 1 1 45%;
   }
 }
 </style>

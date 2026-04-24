@@ -14,16 +14,84 @@
         <h1 class="title">AI 行动助手</h1>
       </div>
       <p class="subtitle">基于截图与系统上下文理解</p>
+      <p class="slogan">让截图变成下一步行动</p>
       <p class="tagline">智能识别 · 精准分析 · 高效执行</p>
     </div>
 
     <div class="content">
+      <!-- 上传区域 -->
       <div class="upload-section" :class="{ 'animate-in': mounted }">
-        <ImageUploader @upload-success="handleUploadSuccess" />
+        <div class="upload-card">
+          <div class="upload-icon">
+            <van-icon name="camera" size="48" />
+          </div>
+          <h2 class="upload-title">上传截图</h2>
+          <p class="upload-subtitle">识别其中的任务、日程和出行信息</p>
+          <ImageUploader @upload-success="handleUploadSuccess" />
+        </div>
       </div>
 
+      <!-- 示例场景 -->
+      <div class="examples-section" :class="{ 'animate-in': mounted }">
+        <h2 class="section-title">
+          <van-icon name="star-o" size="20" />
+          示例场景
+        </h2>
+        <div class="examples-grid">
+          <div class="example-card">
+            <div class="example-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+              <van-icon name="chat-o" size="24" />
+            </div>
+            <h3>群通知转待办</h3>
+            <p>识别群聊中的任务分配，自动生成待办事项</p>
+          </div>
+          <div class="example-card">
+            <div class="example-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+              <van-icon name="calendar-o" size="24" />
+            </div>
+            <h3>活动海报加日历</h3>
+            <p>从海报中提取活动信息，一键添加到日历</p>
+          </div>
+          <div class="example-card">
+            <div class="example-icon" style="background: linear-gradient(135deg, #faad14 0%, #ffc53d 100%);">
+              <van-icon name="navigate" size="24" />
+            </div>
+            <h3>行程截图生成提醒</h3>
+            <p>识别航班、酒店信息，设置出行提醒</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 快速链接 -->
+      <div class="quick-links" :class="{ 'animate-in': mounted }">
+        <van-button 
+          type="primary" 
+          block 
+          @click="goToHistory"
+          icon="orders-o"
+          class="action-btn history-btn"
+          size="large"
+        >
+          查看最近记录
+        </van-button>
+        <van-button 
+          type="default" 
+          block 
+          @click="showExample"
+          icon="photo-o"
+          class="action-btn secondary"
+          size="large"
+        >
+          查看示例截图
+        </van-button>
+      </div>
+
+      <!-- 核心功能 -->
       <div class="features" :class="{ 'animate-in': mounted }">
-        <h2 class="section-title">核心功能</h2>
+        <h2 class="section-title">
+          <van-icon name="lightning-o" size="20" />
+          核心功能
+        </h2>
         <div class="feature-grid">
           <div class="feature-card">
             <div class="feature-icon-wrapper scan">
@@ -47,29 +115,6 @@
             <p>自动生成行动建议，一键执行</p>
           </div>
         </div>
-      </div>
-
-      <div class="quick-links" :class="{ 'animate-in': mounted }">
-        <van-button 
-          type="primary" 
-          block 
-          @click="goToHistory"
-          icon="orders-o"
-          class="action-btn"
-          size="large"
-        >
-          查看历史记录
-        </van-button>
-        <van-button 
-          type="default" 
-          block 
-          @click="showExample"
-          icon="photo-o"
-          class="action-btn secondary"
-          size="large"
-        >
-          查看示例
-        </van-button>
       </div>
 
       <div class="stats" :class="{ 'animate-in': mounted }">
@@ -96,7 +141,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import ImageUploader from '../components/ImageUploader.vue';
-import { showToast, showDialog } from 'vant';
+import { showDialog } from 'vant';
 
 const router = useRouter();
 const mounted = ref(false);
@@ -107,8 +152,11 @@ onMounted(() => {
   }, 100);
 });
 
-const handleUploadSuccess = (imageId: number) => {
-  router.push(`/result/${imageId}`);
+const handleUploadSuccess = (imageId: number, imageUrl: string) => {
+  router.push({ 
+    path: `/result/${imageId}`,
+    query: { imageUrl } 
+  });
 };
 
 const goToHistory = () => {
@@ -137,22 +185,11 @@ const showExample = () => {
     }
   ];
   
-  const exampleHtml = `
-    <div class="example-list">
-      ${examples.map(example => `
-        <div class="example-item" style="margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 12px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
-          <h3 style="margin-top: 0; margin-bottom: 8px; font-size: 16px; color: #333;">${example.title}</h3>
-          <p style="margin-bottom: 12px; font-size: 14px; color: #666;">${example.description}</p>
-          <img src="${example.image}" alt="${example.title}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; cursor: pointer;" onclick="window.open('${example.image}', '_blank')">
-        </div>
-      `).join('')}
-    </div>
-  `;
+  const message = examples.map(example => `${example.title}: ${example.description}`).join('\n\n');
   
   showDialog({
     title: '📸 示例截图',
-    message: exampleHtml,
-    dangerouslyUseHTMLString: true,
+    message: message,
     confirmButtonText: '关闭',
     confirmButtonColor: '#1989fa'
   });
@@ -166,6 +203,8 @@ const showExample = () => {
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  max-width: 430px;
+  margin: 0 auto;
 }
 
 .background-effects {
@@ -294,6 +333,18 @@ const showExample = () => {
   font-weight: 400;
 }
 
+.slogan {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 12px 0 8px 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .tagline {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.7);
@@ -313,14 +364,56 @@ const showExample = () => {
   transform: translateY(0);
 }
 
-.features {
+.upload-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 30px 20px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.upload-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.upload-icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.upload-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 8px 0;
+}
+
+.upload-subtitle {
+  font-size: 14px;
+  color: #888;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.examples-section {
   margin-bottom: 30px;
   opacity: 0;
   transform: translateY(20px);
-  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.4s;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s;
 }
 
-.features.animate-in {
+.examples-section.animate-in {
   opacity: 1;
   transform: translateY(0);
 }
@@ -332,6 +425,68 @@ const showExample = () => {
   text-align: center;
   margin-bottom: 16px;
   text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.examples-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.example-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 16px 12px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.example-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.example-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.example-card h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 6px 0;
+}
+
+.example-card p {
+  font-size: 10px;
+  color: #888;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.features {
+  margin-bottom: 30px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.5s;
+}
+
+.features.animate-in {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .feature-grid {
@@ -400,7 +555,7 @@ const showExample = () => {
   margin-bottom: 24px;
   opacity: 0;
   transform: translateY(20px);
-  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.6s;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.4s;
 }
 
 .quick-links.animate-in {
@@ -426,6 +581,11 @@ const showExample = () => {
   border: none;
 }
 
+.action-btn.history-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
 .stats {
   display: flex;
   justify-content: center;
@@ -436,7 +596,7 @@ const showExample = () => {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   opacity: 0;
   transform: translateY(20px);
-  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.8s;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.6s;
 }
 
 .stats.animate-in {
@@ -478,6 +638,37 @@ const showExample = () => {
   
   .title {
     font-size: 26px;
+  }
+  
+  .slogan {
+    font-size: 16px;
+  }
+  
+  .upload-card {
+    padding: 24px 16px;
+  }
+  
+  .upload-icon {
+    width: 64px;
+    height: 64px;
+  }
+  
+  .examples-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .example-card {
+    display: flex;
+    align-items: center;
+    text-align: left;
+    padding: 16px;
+    gap: 12px;
+  }
+  
+  .example-icon {
+    margin: 0;
+    flex-shrink: 0;
   }
   
   .feature-grid {

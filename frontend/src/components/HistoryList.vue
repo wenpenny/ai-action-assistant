@@ -42,11 +42,11 @@ import { getSceneLabel, getSceneColor } from '../utils/scene';
 interface HistoryItem {
   image_id: number;
   file_name: string;
-  file_path: string;
+  file_path?: string;
   created_at: string;
   parse_status: string;
-  scene_type: string | null;
-  summary: string | null;
+  scene_type?: string | null;
+  summary?: string | null;
 }
 
 defineProps<{

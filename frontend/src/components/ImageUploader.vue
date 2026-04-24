@@ -63,7 +63,7 @@ import { showToast } from 'vant';
 import { uploadImage, parseImage } from '../api/upload';
 
 const emit = defineEmits<{
-  'upload-success': [imageId: number]
+  'upload-success': [imageId: number, imageUrl: string]
 }>();
 
 const fileList = ref<any[]>([]);
@@ -112,7 +112,7 @@ const handleAfterRead = async (file: any) => {
     
     await parseImage(uploadResult.image_id);
     
-    emit('upload-success', uploadResult.image_id);
+    emit('upload-success', uploadResult.image_id, uploadResult.image_url);
   } catch (error) {
     showToast('上传失败，请重试');
     console.error('上传失败:', error);

@@ -63,10 +63,14 @@ async def get_history_detail(
         # 查询对应的解析结果
         parse_result = db.query(ParseResult).filter(ParseResult.image_id == image_id).first()
         
+        # 生成图片 URL
+        image_url = f"/uploads/{image.file_name}"
+        
         if not parse_result:
             return {
                 "image_id": image.id,
                 "file_name": image.file_name,
+                "image_url": image_url,
                 "created_at": image.created_at,
                 "parse_status": image.parse_status.value,
                 "ocr_text": "",
@@ -89,7 +93,8 @@ async def get_history_detail(
                     "action_id": action.id,
                     "action_type": action.action_type,
                     "status": action.status.value,
-                    "created_at": action.created_at
+                    "created_at": action.created_at,
+                    "payload": json.loads(action.payload) if action.payload else {}
                 })
             
             # 解析 JSON 字段
@@ -118,6 +123,7 @@ async def get_history_detail(
         return {
             "image_id": image.id,
             "file_name": image.file_name,
+            "image_url": image_url,
             "created_at": image.created_at,
             "parse_status": image.parse_status.value,
             "ocr_text": ocr_text,

@@ -23,6 +23,7 @@ class ActionPlanItem(BaseModel):
     action_type: str
     label: str
     payload: Dict[str, Any]
+    is_valid: bool = True
 
 class ParseItemBase(BaseModel):
     item_id: str

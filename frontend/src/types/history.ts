@@ -1,10 +1,13 @@
 export interface HistoryItem {
   image_id: number;
   file_name: string;
+  file_path?: string;
   created_at: string;
   parse_status: string;
   item_count: number;
   action_count: number;
+  scene_type?: string | null;
+  summary?: string | null;
 }
 
 export interface ActionRecord {
@@ -27,6 +30,7 @@ export interface HistoryParseItem {
 export interface HistoryDetail {
   image_id: number;
   file_name: string;
+  image_url?: string;
   created_at: string;
   parse_status: string;
   ocr_text: string;

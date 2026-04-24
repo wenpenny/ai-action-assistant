@@ -211,29 +211,33 @@ class ParseService:
     def _determine_scene_type(self, ocr_text: str, llm_scene_type: str) -> str:
         """规则 + LLM 双重判断场景类型"""
         # 规则关键词
-        schedule_keywords = ["会议", "讲座", "面试", "时间", "地点", "活动"]
-        task_keywords = ["作业", "截止", "提交", "报名", "材料", "要求"]
+        task_keywords = ["缴费", "提交", "报名", "截止", "完成", "材料", "要求"]
+        schedule_keywords = ["讲座", "会议", "答疑", "面试", "时间", "地点"]
         travel_keywords = ["车次", "航班", "酒店", "入住", "出发", "到达", "订单"]
         
         # 转换为小写进行匹配
         text_lower = ocr_text.lower()
         
         # 规则判断
-        schedule_count = sum(1 for keyword in schedule_keywords if keyword in text_lower)
-        task_count = sum(1 for keyword in task_keywords if keyword in text_lower)
-        travel_count = sum(1 for keyword in travel_keywords if keyword in text_lower)
+        has_task_keywords = any(keyword in text_lower for keyword in task_keywords)
+        has_schedule_keywords = any(keyword in text_lower for keyword in schedule_keywords)
+        has_travel_keywords = any(keyword in text_lower for keyword in travel_keywords)
         
-        # 取规则判断的最高得分
-        max_count = max(schedule_count, task_count, travel_count)
+        # 检查是否有明确的时间地点信息（用于 schedule 判断）
+        has_time_info = any(keyword in text_lower for keyword in ["时间", "几点", "点", "分", "上午", "下午", "晚上"])
+        has_location_info = any(keyword in text_lower for keyword in ["地点", "地址", "在", "于"])
         
-        # 如果规则判断有明确结果，使用规则结果
-        if max_count > 0:
-            if max_count == schedule_count:
-                return "schedule"
-            elif max_count == task_count:
-                return "task"
-            else:
-                return "travel"
+        # 规则优先级：
+        # 1. 如果有 task 关键词，优先判为 task
+        # 2. 如果有 travel 关键词，判为 travel
+        # 3. 如果有 schedule 关键词且有明确时间地点，判为 schedule
+        # 4. 否则使用 LLM 结果
+        if has_task_keywords:
+            return "task"
+        elif has_travel_keywords:
+            return "travel"
+        elif has_schedule_keywords and (has_time_info or has_location_info):
+            return "schedule"
         
         # 否则使用 LLM 结果
         valid_scene_types = ["schedule", "task", "travel", "other"]
@@ -271,6 +275,9 @@ class ParseService:
             elif field == "required_materials" and not isinstance(entities[field], list):
                 entities[field] = None
         
+        # 增强时间解析
+        self._enhance_time_parsing(entities)
+        
         # 校验并规范化 suggested_actions
         valid_actions = ["create_todo", "set_reminder", "open_map", "export_calendar"]
         validated_actions = []
@@ -280,6 +287,70 @@ class ParseService:
         validated_result["suggested_actions"] = validated_actions
         
         return validated_result
+    
+    def _enhance_time_parsing(self, entities: Dict[str, Any]) -> None:
+        """增强时间解析能力"""
+        from datetime import datetime, timedelta
+        
+        # 处理相对时间
+        if entities.get("date"):
+            date_str = entities["date"]
+            
+            # 处理相对时间表达式
+            today = datetime.now()
+            if "今天" in date_str:
+                entities["date"] = today.strftime("%Y-%m-%d")
+                entities["date_confidence"] = "high"
+                entities["needs_user_confirm"] = False
+            elif "明天" in date_str:
+                tomorrow = today + timedelta(days=1)
+                entities["date"] = tomorrow.strftime("%Y-%m-%d")
+                entities["date_confidence"] = "high"
+                entities["needs_user_confirm"] = False
+            elif "后天" in date_str:
+                day_after_tomorrow = today + timedelta(days=2)
+                entities["date"] = day_after_tomorrow.strftime("%Y-%m-%d")
+                entities["date_confidence"] = "high"
+                entities["needs_user_confirm"] = False
+            elif "本周" in date_str:
+                # 本周的开始（周一）
+                week_start = today - timedelta(days=today.weekday())
+                entities["date"] = week_start.strftime("%Y-%m-%d")
+                entities["date_confidence"] = "medium"
+                entities["needs_user_confirm"] = True
+            elif "下周" in date_str:
+                # 下周的开始（周一）
+                next_week_start = today + timedelta(days=7 - today.weekday())
+                entities["date"] = next_week_start.strftime("%Y-%m-%d")
+                entities["date_confidence"] = "medium"
+                entities["needs_user_confirm"] = True
+            else:
+                # 检查日期格式
+                try:
+                    # 尝试解析日期
+                    parsed_date = datetime.strptime(date_str, "%Y-%m-%d")
+                    entities["date_confidence"] = "high"
+                    entities["needs_user_confirm"] = False
+                except ValueError:
+                    try:
+                        # 尝试解析月日格式
+                        parsed_date = datetime.strptime(date_str, "%m-%d")
+                        # 不要强行补年份
+                        entities["date_confidence"] = "medium"
+                        entities["needs_user_confirm"] = True
+                    except ValueError:
+                        entities["date_confidence"] = "low"
+                        entities["needs_user_confirm"] = True
+        else:
+            # 没有日期信息
+            entities["date_confidence"] = "low"
+            entities["needs_user_confirm"] = False
+        
+        # 确保字段存在
+        if "date_confidence" not in entities:
+            entities["date_confidence"] = "low"
+        if "needs_user_confirm" not in entities:
+            entities["needs_user_confirm"] = False
     
     def _validate_and_normalize_item(self, item_data: Dict[str, Any]) -> Dict[str, Any]:
         """校验并规范化事项数据"""
@@ -310,6 +381,9 @@ class ParseService:
             elif field == "required_materials" and not isinstance(entities[field], list):
                 entities[field] = None
         
+        # 增强时间解析
+        self._enhance_time_parsing(entities)
+        
         # 校验并规范化 suggested_actions
         valid_actions = ["create_todo", "set_reminder", "open_map", "export_calendar"]
         validated_actions = []
@@ -332,14 +406,17 @@ class ParseService:
                 title = entities.get("title", entities.get("task_name", "未命名任务"))
                 deadline = entities.get("deadline")
                 
-                action_plan.append(ActionPlanItem(
-                    action_type="create_todo",
-                    label="创建待办",
-                    payload={
-                        "title": title,
-                        "deadline": deadline
-                    }
-                ))
+                # 校验：至少需要 title
+                if title:
+                    action_plan.append(ActionPlanItem(
+                        action_type="create_todo",
+                        label="创建待办",
+                        payload={
+                            "title": title,
+                            "deadline": deadline
+                        },
+                        is_valid=True
+                    ))
             
             elif action == "set_reminder":
                 # 生成设置提醒的 action plan
@@ -350,13 +427,16 @@ class ParseService:
                 if not remind_at and entities.get("date") and entities.get("start_time"):
                     remind_at = f"{entities['date']} {entities['start_time']}"
                 
+                # 校验：必须有 remind_at
+                is_valid = bool(remind_at)
                 action_plan.append(ActionPlanItem(
                     action_type="set_reminder",
                     label="设置提醒",
                     payload={
                         "title": title,
                         "remind_at": remind_at
-                    }
+                    },
+                    is_valid=is_valid
                 ))
             
             elif action == "open_map":
@@ -364,13 +444,16 @@ class ParseService:
                 location = entities.get("location")
                 address = entities.get("address")
                 
+                # 校验：必须有 location 或 address
+                is_valid = bool(location or address)
                 action_plan.append(ActionPlanItem(
                     action_type="open_map",
                     label="打开地图",
                     payload={
                         "location": location,
                         "address": address
-                    }
+                    },
+                    is_valid=is_valid
                 ))
             
             elif action == "export_calendar":
@@ -381,6 +464,8 @@ class ParseService:
                 end_time = entities.get("end_time")
                 location = entities.get("location")
                 
+                # 校验：必须有 title、date、start_time
+                is_valid = bool(title and date and start_time)
                 action_plan.append(ActionPlanItem(
                     action_type="export_calendar",
                     label="导出日历",
@@ -390,7 +475,8 @@ class ParseService:
                         "start_time": start_time,
                         "end_time": end_time,
                         "location": location
-                    }
+                    },
+                    is_valid=is_valid
                 ))
         
         return action_plan
