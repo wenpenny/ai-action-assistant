@@ -1,6 +1,6 @@
 <template>
   <div class="entity-editor">
-    <h3 class="editor-title">编辑信息</h3>
+    <h3 class="editor-title">编辑事项</h3>
     <van-form @submit="handleSubmit">
       <van-field
         v-model="localEntities.title"
@@ -44,6 +44,7 @@
         placeholder="请输入链接"
       />
       <div class="editor-actions">
+        <van-button type="default" @click="emit('cancel')">取消</van-button>
         <van-button type="default" @click="resetForm">重置</van-button>
         <van-button type="primary" native-type="submit" :loading="loading">保存</van-button>
       </div>
@@ -58,11 +59,13 @@ import type { Entities } from '../types/parse';
 
 const props = defineProps<{
   entities: Entities
+  sceneType?: string
 }>();
 
 const emit = defineEmits<{
   'update:entities': [entities: Entities]
   'save': [entities: Entities]
+  'cancel': []
 }>();
 
 const loading = ref(false);
@@ -109,7 +112,6 @@ const handleSubmit = async () => {
   try {
     emit('update:entities', localEntities.value);
     emit('save', localEntities.value);
-    showToast('保存成功');
   } catch (error) {
     showToast('保存失败，请重试');
     console.error('保存失败:', error);
@@ -159,5 +161,15 @@ const resetForm = () => {
   justify-content: space-between;
   margin-top: 20px;
   gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .editor-actions {
+    flex-direction: column;
+  }
+  
+  .editor-actions .van-button {
+    width: 100%;
+  }
 }
 </style>

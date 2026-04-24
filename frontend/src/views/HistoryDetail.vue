@@ -16,72 +16,114 @@
     </div>
 
     <div v-else class="detail-content">
+      <!-- 图片展示 -->
       <div class="image-container">
-        <img :src="historyData?.image?.file_path || ''" :alt="historyData?.image?.file_name || '历史图片'" />
+        <img :src="imageUrl" :alt="historyData?.file_name || '历史图片'" />
       </div>
 
+      <!-- 基本信息 -->
       <div class="info-section">
         <van-cell-group>
-          <van-cell title="文件名" :value="historyData?.image?.file_name" />
-          <van-cell title="上传时间" :value="formatDate(historyData?.image?.created_at || '')" />
-          <van-cell v-if="historyData?.parse_result" title="场景类型" :value="getSceneLabel(historyData.parse_result.scene_type)" />
+          <van-cell title="文件名" :value="historyData?.file_name" />
+          <van-cell title="上传时间" :value="formatDate(historyData?.created_at || '')" />
+          <van-cell title="解析状态" :value="historyData?.parse_status" />
         </van-cell-group>
       </div>
 
-      <div v-if="historyData?.parse_result" class="parse-section">
-        <h3 class="section-title">解析结果</h3>
-        <ParseSummaryCard :summary="historyData.parse_result.summary" />
+      <!-- OCR 文本 -->
+      <div class="ocr-section">
+        <van-collapse v-model="ocrCollapsed">
+          <van-collapse-item title="OCR 识别结果">
+            <div class="ocr-text">
+              {{ historyData?.ocr_text || '无识别文本' }}
+            </div>
+          </van-collapse-item>
+        </van-collapse>
+      </div>
+
+      <!-- 事项列表 -->
+      <div class="items-section">
+        <h3 class="section-title">识别到的事项</h3>
         
-        <div class="entities-section">
-          <h4 class="subsection-title">结构化信息</h4>
-          <van-cell-group>
-            <van-cell v-if="historyData.parse_result.entities.title" title="标题" :value="historyData.parse_result.entities.title" />
-            <van-cell v-if="historyData.parse_result.entities.date" title="日期" :value="historyData.parse_result.entities.date" />
-            <van-cell v-if="historyData.parse_result.entities.start_time" title="开始时间" :value="historyData.parse_result.entities.start_time" />
-            <van-cell v-if="historyData.parse_result.entities.end_time" title="结束时间" :value="historyData.parse_result.entities.end_time" />
-            <van-cell v-if="historyData.parse_result.entities.deadline" title="截止时间" :value="historyData.parse_result.entities.deadline" />
-            <van-cell v-if="historyData.parse_result.entities.location" title="地点" :value="historyData.parse_result.entities.location" />
-            <van-cell v-if="historyData.parse_result.entities.address" title="地址" :value="historyData.parse_result.entities.address" />
-            <van-cell v-if="historyData.parse_result.entities.link" title="链接" :value="historyData.parse_result.entities.link" is-link @click="openLink(historyData.parse_result.entities.link)" />
-          </van-cell-group>
+        <div v-if="historyData?.items?.length === 0" class="empty-items">
+          <van-empty description="未识别到事项" />
         </div>
-      </div>
 
-      <div v-if="historyData?.action_records && historyData.action_records.length > 0" class="action-section">
-        <h3 class="section-title">动作记录</h3>
-        <van-cell-group>
-          <van-cell 
-            v-for="record in historyData.action_records" 
-            :key="record.id"
-            :title="getActionLabel(record.action_type)"
-            :value="formatDate(record.created_at)"
-            is-link
+        <div v-else class="items-list">
+          <div 
+            v-for="item in historyData?.items" 
+            :key="item.item_id"
+            class="item-card"
           >
-            <template #default>
-              <div class="action-record">
-                <div class="action-type">{{ getActionLabel(record.action_type) }}</div>
-                <div class="action-status" :class="record.execute_status === 'success' ? 'success' : 'failed'">
-                  {{ record.execute_status === 'success' ? '成功' : '失败' }}
-                </div>
-                <div class="action-time">{{ formatDate(record.created_at) }}</div>
+            <!-- 事项头部 -->
+            <div class="item-header">
+              <van-tag :color="getSceneColor(item.scene_type)">
+                {{ getSceneLabel(item.scene_type) }}
+              </van-tag>
+              <span class="item-id">ID: {{ item.item_id }}</span>
+            </div>
+
+            <!-- 事项摘要 -->
+            <div class="item-summary">
+              {{ item.summary }}
+            </div>
+
+            <!-- 关键实体 -->
+            <div class="item-entities">
+              <div v-if="item.entities.title" class="entity-item">
+                <span class="entity-label">标题：</span>
+                <span class="entity-value">{{ item.entities.title }}</span>
               </div>
-            </template>
-          </van-cell>
-        </van-cell-group>
+              <div v-if="item.entities.date || item.entities.deadline" class="entity-item">
+                <span class="entity-label">时间：</span>
+                <span class="entity-value">
+                  {{ item.entities.date || item.entities.deadline }}
+                  {{ item.entities.start_time ? ` ${item.entities.start_time}` : '' }}
+                </span>
+              </div>
+              <div v-if="item.entities.location || item.entities.address" class="entity-item">
+                <span class="entity-label">地点：</span>
+                <span class="entity-value">{{ item.entities.location || item.entities.address }}</span>
+              </div>
+            </div>
+
+            <!-- 动作记录 -->
+            <div v-if="item.actions && item.actions.length > 0" class="item-actions">
+              <h4 class="subsection-title">动作记录</h4>
+              <van-cell-group>
+                <van-cell 
+                  v-for="action in item.actions" 
+                  :key="action.action_id"
+                  is-link
+                >
+                  <template #default>
+                    <div class="action-record">
+                      <div class="action-type">{{ getActionLabel(action.action_type) }}</div>
+                      <div class="action-status" :class="action.status === 'completed' ? 'success' : 'failed'">
+                        {{ action.status === 'completed' ? '成功' : '失败' }}
+                      </div>
+                      <div class="action-time">{{ formatDate(action.created_at) }}</div>
+                    </div>
+                  </template>
+                </van-cell>
+              </van-cell-group>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import LoadingBlock from '../components/LoadingBlock.vue';
-import ParseSummaryCard from '../components/ParseSummaryCard.vue';
 import { getHistoryDetail } from '../api/history';
 import { formatDate } from '../utils/format';
-import { getSceneLabel } from '../utils/scene';
+import { getSceneLabel, getSceneColor } from '../utils/scene';
 import { getActionLabel } from '../utils/actions';
+import type { HistoryDetail } from '../types/history';
 
 const route = useRoute();
 const router = useRouter();
@@ -89,7 +131,12 @@ const router = useRouter();
 const imageId = Number(route.params.id);
 const loading = ref(true);
 const error = ref(false);
-const historyData = ref<any>(null);
+const historyData = ref<HistoryDetail | null>(null);
+const ocrCollapsed = ref(true);
+
+const imageUrl = computed(() => {
+  return `/api/uploads/${imageId}.jpg`;
+});
 
 const loadData = async () => {
   loading.value = true;
@@ -102,12 +149,6 @@ const loadData = async () => {
     error.value = true;
   } finally {
     loading.value = false;
-  }
-};
-
-const openLink = (link: string) => {
-  if (link) {
-    window.open(link, '_blank');
   }
 };
 
@@ -160,25 +201,105 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.parse-section,
-.action-section {
-  margin-bottom: 20px;
-  background-color: #fff;
+.ocr-section {
+  margin-bottom: 24px;
+  background-color: white;
   border-radius: 8px;
+  overflow: hidden;
+}
+
+.ocr-text {
   padding: 16px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: #333;
+}
+
+.items-section {
+  margin-bottom: 20px;
 }
 
 .section-title {
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 600;
   margin-bottom: 16px;
   color: #333;
+}
+
+.empty-items {
+  background-color: white;
+  padding: 40px 20px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.item-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.item-id {
+  font-size: 12px;
+  color: #999;
+}
+
+.item-summary {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.item-entities {
+  margin-bottom: 20px;
+  padding: 12px;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+}
+
+.entity-item {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.entity-item:last-child {
+  margin-bottom: 0;
+}
+
+.entity-label {
+  color: #666;
+  margin-right: 8px;
+}
+
+.entity-value {
+  color: #333;
+  font-weight: 500;
+}
+
+.item-actions {
+  margin-top: 16px;
 }
 
 .subsection-title {
   font-size: 14px;
   font-weight: bold;
-  margin: 16px 0 8px 0;
+  margin: 0 0 8px 0;
   color: #666;
 }
 
@@ -220,6 +341,10 @@ onMounted(() => {
 @media (max-width: 480px) {
   .detail-content {
     padding: 15px;
+  }
+  
+  .item-card {
+    padding: 16px;
   }
 }
 </style>

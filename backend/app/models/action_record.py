@@ -13,6 +13,7 @@ class ActionRecord(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
+    item_id = Column(String(50), nullable=True)  # 关联到 parse_items 的 item_id
     action_type = Column(String(50), nullable=False)  # create_todo, set_reminder, open_map, export_calendar
     action_payload_json = Column(Text, nullable=False)  # JSON 字符串
     execute_status = Column(Enum(ExecuteStatus), default=ExecuteStatus.PENDING)

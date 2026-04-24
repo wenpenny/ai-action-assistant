@@ -16,14 +16,35 @@ export interface Entities {
   booking_no: string;
 }
 
-export interface ParseResult {
+export interface ActionPlanItem {
+  action_type: string;
+  label: string;
+  payload: Record<string, any>;
+}
+
+export interface ParseItem {
+  item_id: string;
   scene_type: 'schedule' | 'task' | 'travel' | 'other';
   summary: string;
   entities: Entities;
   suggested_actions: string[];
+  action_plan: ActionPlanItem[];
+}
+
+export interface ParseResponse {
+  image_id: number;
+  ocr_text: string;
+  items: ParseItem[];
 }
 
 export interface UploadResponse {
   image_id: number;
   image_url: string;
+}
+
+export interface ParseResult {
+  scene_type: 'schedule' | 'task' | 'travel' | 'other';
+  summary: string;
+  entities: Entities;
+  suggested_actions: string[];
 }

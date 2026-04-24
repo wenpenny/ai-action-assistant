@@ -14,6 +14,14 @@ export interface ActionRequest {
   image_id: number;
   action_type: 'create_todo' | 'set_reminder' | 'open_map' | 'export_calendar';
   payload: ActionPayload;
+  item_id?: string;
+}
+
+export interface ItemActionRequest {
+  image_id: number;
+  item_id: string;
+  action_type: 'create_todo' | 'set_reminder' | 'open_map' | 'export_calendar';
+  payload: ActionPayload;
 }
 
 export interface ActionResponse {

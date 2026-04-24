@@ -1,7 +1,7 @@
 import requests
 from typing import Dict, Any
 from .base import LLMService
-from ...config import LLM_API_URL, LLM_API_KEY
+from app.core.config import LLM_API_URL, LLM_API_KEY
 
 class HttpLLMService(LLMService):
     def analyze_text(self, text: str) -> Dict[str, Any]:

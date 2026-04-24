@@ -1,43 +1,93 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
+from typing import Dict, Any
 from ..core.database import get_db
-from ..schemas import ActionRequest, ActionResponse
 from ..services.action_service import ActionService
 
 router = APIRouter()
 action_service = ActionService()
 
-@router.post("/execute", response_model=ActionResponse)
+@router.post("/execute")
 async def execute_action(
-    action_request: ActionRequest,
+    action_data: Dict[str, Any],
     db: Session = Depends(get_db)
-) -> ActionResponse:
+) -> Dict[str, Any]:
     """执行动作"""
     try:
-        result = action_service.execute_action(
-            image_id=action_request.image_id,
-            action_type=action_request.action_type,
-            payload=action_request.payload,
-            db=db
-        )
+        action_type = action_data.get("action_type")
+        payload = action_data.get("payload", {})
+        item_id = action_data.get("item_id", "")
         
-        # 根据动作类型生成响应消息
-        messages = {
-            "create_todo": "待办已创建",
-            "set_reminder": "提醒已设置",
-            "open_map": "地图链接已生成",
-            "export_calendar": "日历已导出"
-        }
+        if not action_type:
+            return {
+                "success": False,
+                "message": "Action type is required",
+                "data": None
+            }
         
-        message = messages.get(action_request.action_type, "动作已执行")
+        result = action_service.execute_action(action_type, payload, item_id, db)
         
-        return ActionResponse(
-            success=True,
-            message=message,
-            data=result
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        if result.get("success"):
+            return {
+                "success": True,
+                "message": "Action executed successfully",
+                "data": result
+            }
+        else:
+            return {
+                "success": False,
+                "message": result.get("error", "Failed to execute action"),
+                "data": None
+            }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Internal server error: {str(e)}",
+            "data": None
+        }
+
+@router.post("/execute-item")
+async def execute_item_action(
+    action_data: Dict[str, Any],
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """执行事项级动作"""
+    try:
+        action_type = action_data.get("action_type")
+        payload = action_data.get("payload", {})
+        item_id = action_data.get("item_id")
+        
+        if not action_type:
+            return {
+                "success": False,
+                "message": "Action type is required",
+                "data": None
+            }
+        
+        if not item_id:
+            return {
+                "success": False,
+                "message": "Item ID is required",
+                "data": None
+            }
+        
+        result = action_service.execute_action(action_type, payload, item_id, db)
+        
+        if result.get("success"):
+            return {
+                "success": True,
+                "message": "Action executed successfully",
+                "data": result
+            }
+        else:
+            return {
+                "success": False,
+                "message": result.get("error", "Failed to execute action"),
+                "data": None
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Internal server error: {str(e)}",
+            "data": None
+        }

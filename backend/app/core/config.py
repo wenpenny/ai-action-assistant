@@ -18,7 +18,7 @@ OCR_API_KEY = "TbdhuEoaBc4WJbdvz9dndRBJ"
 OCR_SECRET_KEY = "ohrNnBPGJu5Cw5Iv0lk9YiwsrcN4QkRD"
 
 # LLM 服务配置
-LLM_SERVICE_TYPE = "deepseek"  # bluelm, deepseek
+LLM_SERVICE_TYPE = "deepseek"  # bluelm, deepseek, mock
 
 # BlueLM 配置
 BLUELM_API_URL = "https://api.vivo.com.cn/v1/chat/completions"

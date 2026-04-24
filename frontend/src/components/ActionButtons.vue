@@ -1,20 +1,20 @@
 <template>
   <div class="action-buttons">
-    <div v-if="actions.length === 0" class="no-actions">
+    <div v-if="actionPlan.length === 0" class="no-actions">
       <van-empty description="暂无建议动作" />
     </div>
     <div v-else class="button-grid">
       <van-button
-        v-for="action in actions"
-        :key="action"
-        :type="getActionType(action)"
-        :icon="getActionIcon(action)"
+        v-for="(action, index) in actionPlan"
+        :key="index"
+        :type="getActionType(action.action_type)"
+        :icon="getActionIcon(action.action_type)"
         block
-        :loading="loadingActions.includes(action)"
+        :loading="loadingActions.includes(action.action_type)"
         @click="handleExecuteAction(action)"
         class="action-button"
       >
-        {{ getActionLabel(action) }}
+        {{ action.label }}
       </van-button>
     </div>
   </div>
@@ -23,14 +23,14 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { showToast } from 'vant';
-import { executeAction } from '../api/action';
+import { executeItemAction } from '../api/action';
 import { getActionLabel, getActionIcon } from '../utils/actions';
-import type { Entities } from '../types/parse';
+import type { ActionPlanItem } from '../types/parse';
 
 const props = defineProps<{
-  actions: string[]
-  entities: Entities
+  actionPlan: ActionPlanItem[]
   imageId: number
+  itemId: string
 }>();
 
 const emit = defineEmits<{
@@ -39,22 +39,26 @@ const emit = defineEmits<{
 
 const loadingActions = ref<string[]>([]);
 
-const getActionType = (action: string) => {
+const getActionType = (actionType: string) => {
   const types: Record<string, any> = {
     create_todo: 'primary',
     set_reminder: 'warning',
     open_map: 'info',
     export_calendar: 'success'
   };
-  return types[action] || 'default';
+  return types[actionType] || 'default';
 };
 
-const handleExecuteAction = async (actionType: string) => {
-  loadingActions.value.push(actionType);
+const handleExecuteAction = async (action: ActionPlanItem) => {
+  loadingActions.value.push(action.action_type);
   
   try {
-    const payload = buildActionPayload(actionType, props.entities);
-    const result = await executeAction(props.imageId, actionType, payload);
+    const result = await executeItemAction(
+      props.imageId, 
+      props.itemId, 
+      action.action_type, 
+      action.payload
+    );
     
     emit('action-success', result);
     showToast(result.message || '动作执行成功');
@@ -62,44 +66,14 @@ const handleExecuteAction = async (actionType: string) => {
     if (result.data?.map_url) {
       window.open(result.data.map_url, '_blank');
     }
-    if (result.data?.ics_path) {
-      window.open(result.data.ics_path, '_blank');
+    if (result.data?.ics_file_path) {
+      window.open(result.data.ics_file_path, '_blank');
     }
   } catch (error) {
     showToast('动作执行失败，请重试');
     console.error('动作执行失败:', error);
   } finally {
-    loadingActions.value = loadingActions.value.filter(action => action !== actionType);
-  }
-};
-
-const buildActionPayload = (actionType: string, entities: Entities) => {
-  switch (actionType) {
-    case 'create_todo':
-      return {
-        title: entities.title || 'Untitled Todo',
-        deadline: entities.deadline || entities.date
-      };
-    case 'set_reminder':
-      return {
-        title: entities.title || 'Untitled Reminder',
-        remind_at: entities.deadline || `${entities.date} ${entities.start_time}`
-      };
-    case 'open_map':
-      return {
-        location: entities.location || entities.address
-      };
-    case 'export_calendar':
-      return {
-        title: entities.title || 'Untitled Event',
-        date: entities.date,
-        start_time: entities.start_time,
-        end_time: entities.end_time,
-        location: entities.location,
-        description: `来自 AI 行动助手的日历事件`
-      };
-    default:
-      return {};
+    loadingActions.value = loadingActions.value.filter(actionType => actionType !== action.action_type);
   }
 };
 </script>

@@ -19,11 +19,18 @@ class Entities(BaseModel):
     hotel_name: Optional[str] = None
     booking_no: Optional[str] = None
 
-class ParseResultBase(BaseModel):
+class ActionPlanItem(BaseModel):
+    action_type: str
+    label: str
+    payload: Dict[str, Any]
+
+class ParseItemBase(BaseModel):
+    item_id: str
     scene_type: str
     summary: str
     entities: Entities
     suggested_actions: List[str]
+    action_plan: List[ActionPlanItem]
     
     @field_validator('scene_type')
     def validate_scene_type(cls, v):
@@ -40,6 +47,10 @@ class ParseResultBase(BaseModel):
                 raise ValueError(f"Invalid action: {action}. Must be one of: {valid_actions}")
         return v
 
+class ParseResultBase(BaseModel):
+    ocr_text: str
+    items: List[ParseItemBase]
+
 class ParseResultCreate(ParseResultBase):
     image_id: int
 
@@ -53,24 +64,13 @@ class ParseResultResponse(ParseResultBase):
         from_attributes = True
 
 class ParseResultUpdate(BaseModel):
-    scene_type: Optional[str] = None
-    summary: Optional[str] = None
-    entities: Optional[Entities] = None
-    suggested_actions: Optional[List[str]] = None
+    items: Optional[List[ParseItemBase]] = None
+
+class ParseItemResponse(ParseItemBase):
+    id: int
+    parse_result_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
     
-    @field_validator('scene_type')
-    def validate_scene_type(cls, v):
-        if v is not None:
-            valid_scene_types = ["schedule", "task", "travel", "other"]
-            if v not in valid_scene_types:
-                raise ValueError(f"Invalid scene type. Must be one of: {valid_scene_types}")
-        return v
-    
-    @field_validator('suggested_actions')
-    def validate_suggested_actions(cls, v):
-        if v is not None:
-            valid_actions = ["create_todo", "set_reminder", "open_map", "export_calendar"]
-            for action in v:
-                if action not in valid_actions:
-                    raise ValueError(f"Invalid action: {action}. Must be one of: {valid_actions}")
-        return v
+    class Config:
+        from_attributes = True

@@ -1,7 +1,7 @@
 from .base import OCRService
 from .mock import MockOCRService
 from .http import HttpOCRService
-from ...config import OCR_SERVICE_TYPE
+from app.core.config import OCR_SERVICE_TYPE
 
 def get_ocr_service() -> OCRService:
     """根据配置获取 OCR 服务实例"""
